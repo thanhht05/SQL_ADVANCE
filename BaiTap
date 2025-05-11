@@ -1,0 +1,157 @@
+--Bai1
+--Cau1
+/*
+CREATE PROCEDURE proc_NhanVienDuAnInsert
+		@MaNhanVien nvarchar(50),
+		@MaDuAn nvarchar(50),
+		@MoTaCongViec nvarchar(255),
+		@KetQua nvarchar(255) OUTPUT
+AS
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM NhanVien WHERE MaNhanVien =@MaNhanVien
+	)
+	BEGIN
+		SET @KetQua ='Nhan vien khong ton tai'
+		RETURN
+	END
+
+	IF NOT EXISTS (
+		SELECT 1 FROM DuAn WHERE MaDuAn=@MaDuAn
+	)
+	BEGIN
+		SET @KetQua='Du an khong ton tai'
+		RETURN
+	END
+
+	INSERT INTO NhanVien_DuAn(MaNhanVien, MaDuAn,NgayGiaoViec, MoTaCongViec) 
+			VALUES(@MaNhanVien,@MaDuAn,GETDATE(),@MoTaCongViec)
+	SET @KetQua=''
+END
+GO
+
+
+DECLARE @kq nvarchar(255)
+EXECUTE proc_NhanVienDuAnInsert 
+		@MaNhanVien ='NV002',
+		@MaDuAn='DA002',
+		@MoTaCongViec='Lap trinh frotnEnd voi VueJS',
+		@KetQua=@kq OUTPUT
+
+PRINT @kq
+
+
+
+
+--Cau2
+ALTER PROCEDURE proc_DuAn_DanhSachNhanVien
+		@TenDuAn nvarchar(255),
+		@NgayGiaoViec date
+AS
+BEGIN
+	IF NOT EXISTS (
+		SELECT 1 FROM DuAn WHERE TenDuAn=@TenDuAn
+	)
+	BEGIN
+		PRINT 'Du an khong ton tai'
+		RETURN
+	END
+
+	SELECT nv.MaNhanVien,nv.HoTen, nv.Email,nv.DiDong, nda.NgayGiaoViec,nda.MoTaCongViec
+	FROM NhanVien_DuAn nda
+		JOIN NhanVien nv ON nv.MaNhanVien = nda.MaNhanVien
+		JOIN DuAn da on da.MaDuAn =nda.MaDuAn
+	where da.TenDuAn=@TenDuAn and nda.NgayGiaoViec <@NgayGiaoViec
+END
+GO
+
+EXECUTE proc_DuAn_DanhSachNhanVien
+		@TenDuAn='E-Shop',
+		@NgayGiaoViec ='2025-05-20'
+
+
+--Cau3
+CREATE PROCEDURE proc_NhanVienTimKiem
+		@Hoten nvarchar(50) =N'',
+		@Tuoi int,
+		@SoLuong int OUTPUt
+AS
+BEGIN
+	CREATE TABLE #tblNhanVien(
+		MaNhanVien nvarchar(50),
+		HoTen nvarchar (50), 
+		NgaySinh date,
+		Tuoi int,
+		Email nvarchar(50),
+		DiDong nvarchar(50)
+	)
+	IF @Hoten=''
+		BEGIN
+			INSERT INTO #tblNhanVien(MaNhanVien,HoTen,NgaySinh,Tuoi,Email,DiDong)
+			SELECT nv.MaNhanVien, nv.HoTen, nv.NgaySinh,  DATEDIFF(YEAR, nv.NgaySinh, GETDATE()) AS Tuoi,
+					nv.Email,nv.DiDong
+			FROM NhanVien nv
+			WHERE  DATEDIFF(YEAR, nv.NgaySinh, GETDATE()) > @Tuoi
+			SELECT * FROM #tblNhanVien;
+			SELECT @SoLuong =  COUNT(*) FROM #tblNhanVien
+			RETURN
+		END
+	INSERT INTO #tblNhanVien(MaNhanVien,HoTen,NgaySinh,Tuoi,Email,DiDong)
+			SELECT nv.MaNhanVien, nv.HoTen, nv.NgaySinh,  DATEDIFF(YEAR, nv.NgaySinh, GETDATE()) AS Tuoi,
+					nv.Email,nv.DiDong
+			FROM NhanVien nv
+			WHERE  DATEDIFF(YEAR, nv.NgaySinh, GETDATE()) > @Tuoi and nv.HoTen like N'%' +@Hoten+'%'
+	SELECT * FROM #tblNhanVien
+
+	SELECT @SoLuong =  COUNT(*) FROM #tblNhanVien
+
+END
+GO
+
+DECLARE @SL int
+EXECUTE proc_NhanVienTimKiem
+		@Hoten=N'',
+		@Tuoi=17,
+		@SoLuong =@SL OUTPUT
+
+PRINT N'Số lượng nhân viên tìm thấy là: ' + CAST(@SL AS NVARCHAR);
+
+*/
+--Cau 4
+-- thong ke trong ngay do co bao nhan vien duoc giao lam viec
+CREATE PROCEDURE proc_ThongKeGiaoViec
+		@MaDuAn nvarchar(50),
+		@TuNgay date,
+		@DenNgay date
+AS
+BEGIN
+	DECLARE @tblDate TABLE(
+		TaskDay date primary key
+	)
+	-- tao bang ngay
+	DECLARE @d date = @TuNgay
+	WHILE(@d<=@DenNgay)
+		BEGIN
+			INSERT INTO @tblDate VALUES(@d)
+			SET @d=DATEADD(DAY,1,@d)
+		END
+
+	-- dem so luong nhan vien 
+	SELECT t.TaskDay,COUNT(nva.MaDuAn) as SoLuong
+	FROM @tblDate t left join NhanVien_DuAn nva
+		on t.TaskDay = nva.NgayGiaoViec
+	GROUP BY  t.TaskDay
+	ORDER BY t.TaskDay
+END
+GO
+
+
+EXECUTE proc_ThongKeGiaoViec
+		@MaDuAn ='DA001',
+		@TuNgay ='2025-05-01',
+		@DenNgay ='2025-05-19'
+
+		
+
+
+
