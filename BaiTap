@@ -154,4 +154,62 @@ EXECUTE proc_ThongKeGiaoViec
 		
 
 
+UPDATE NEW QUESTION AND ANSWER
+
+--có chức năng bổ sung thêm một dự án mới vào bảng Project. Thủ tục phải kiểm tra được tính
+--hợp lệ của dữ liệu đầu vào, trong đó nếu như dự án đã có thời điểm kết thúc thì thời điểm kết
+--thúc phải sau thời điểm bắt đầu của dự án. Tham số đầu ra @Result trả về chuỗi rỗng nếu bổ
+--sung thành công, và trả về chuỗi khác rỗng cho biết lý do trong trường hợp bổ sung không thành công.
+
+
+
+ALTER PROCEDURE proc_Project_Insert
+	@ProjectID int,
+	@ProjectName nvarchar(50),
+	@StartDate date,
+	@EndDate date = NULL,
+	@Result nvarchar(255) OUTPUT
+AS
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM PROJECT WHERE ProjectID=@ProjectID
+	)
+	BEGIN 
+		SET @Result= 'Du an da ton tai'
+		RETURN
+	END
+
+	-- Kiểm tra EndDate nếu có giá trị thì phải sau StartDate
+    IF @EndDate IS NOT NULL AND @EndDate <= @StartDate
+    BEGIN
+        SET @Result = N'Ngày kết thúc phải sau ngày bắt đầu.';
+        RETURN;
+    END
+
+	---- Thêm dữ liệu vào bảng Project
+	BEGIN TRY
+		INSERT INTO PROJECT (ProjectID,ProjectName,StartDate,EndDate)
+		VALUES (@ProjectID, @ProjectName, @StartDate,@EndDate)
+		SET @Result = N'';
+	END TRY
+	BEGIN CATCH
+		SET @Result ='Khong the them du an'
+	END CATCH
+
+END
+GO
+
+DECLARE @msg NVARCHAR(255);
+
+EXEC proc_Project_Insert
+    @ProjectID = 111,
+    @ProjectName = N'Dự án ABC',
+    @StartDate = '2025-05-01',
+    @EndDate = '2021-06-01',
+    @Result = @msg OUTPUT;
+
+-- Kiểm tra kết quả
+PRINT @msg;
+
+
 
